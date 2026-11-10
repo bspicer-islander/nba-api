@@ -13,14 +13,6 @@ app.use((req, res, next) => {
 // Parse incoming JSON data
 app.use(express.json());
 
-// Store NBA players in memory
-let players = [
-    { id: 1, name: "Victor Wembanyama", team: "Spurs" },
-    { id: 2, name: "Kawhi Leonard", team: "Raptors" },
-    { id: 3, name: "Chris Paul", team: "N/A" }
-];
-let nextId = 4;
-
 // GET all players from the database
 app.get("/api/items", async (req, res) => {
     try {
@@ -146,18 +138,35 @@ app.put("/api/items/:id", async (req, res) => {
     }
 });
 
-// DELETE - Remove a player
-app.delete("/api/resources/:id", (req, res) => {
+// DELETE - Remove a player from the database
+app.delete("/api/items/:id", async (req, res) => {
     const id = Number(req.params.id);
-    const index = players.findIndex(player => player.id === id);
 
-    if (index === -1) {
-        return res.status(404).json({ error: "Player not found" });
+    if (!Number.isSafeInteger(id) || id < 1) {
+        return res.status(400).json({
+            error: "Invalid player ID"
+        });
     }
 
-    const removedPlayer = players.splice(index, 1);
+    try {
+        const result = await pool.query(
+            "DELETE FROM players WHERE id = $1 RETURNING *",
+            [id]
+        );
 
-    res.json(removedPlayer[0]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: "Player not found"
+            });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            error: "Database error"
+        });
+    }
 });
 
 // Start the server
