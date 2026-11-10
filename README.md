@@ -1,10 +1,32 @@
 # NBA Players REST API
 
 ## Project Description
-A RESTful API built using Node.js and Express to manage a collection of NBA players. Player information is stored in a local JavaScript array rather than a database.
+A RESTful API built using Node.js, Express, and PostgreSQL to manage NBA players. This project extends my previous Express API by replacing its JavaScript array with a persistent PostgreSQL database.
 
-## Setup
-Install dependencies using `npm install` and start the server using `npm start`.
+## Technologies
+- Node.js
+- Express
+- PostgreSQL
+- pg (Node.js PostgreSQL driver)
+- Thunder Client for API testing
+
+## Database Setup
+
+1. Install PostgreSQL and start the database server.
+2. Create a database named `nba_api`.
+3. Run `schema.sql` to create the `players` table.
+4. Install Node.js dependencies using `npm install`.
+5. Start the application using `node server.js`.
+
+On my Mac, I used these commands to configure PostgreSQL:
+
+```bash
+brew services start postgresql@18
+/opt/homebrew/opt/postgresql@18/bin/createdb nba_api
+/opt/homebrew/opt/postgresql@18/bin/psql -d nba_api -f schema.sql
+```
+
+The database connection is configured in `db.js` for a local PostgreSQL server on port 5432. Other environments may require different connection settings.
 
 The API runs at `http://localhost:3000`.
 
@@ -12,55 +34,75 @@ The API runs at `http://localhost:3000`.
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | /api/resources | Retrieve all players |
-| GET | /api/resources/:id | Retrieve a player by ID |
-| POST | /api/resources | Add a new player |
-| PUT | /api/resources/:id | Update an existing player |
-| DELETE | /api/resources/:id | Remove a player |
+| GET | /api/items | Retrieve all players |
+| GET | /api/items/:id | Retrieve a player by ID |
+| POST | /api/items | Add a new player |
+| PUT | /api/items/:id | Update an existing player |
+| DELETE | /api/items/:id | Permanently remove a player |
 
 ## Testing Evidence
 
-All five endpoints were successfully tested locally using curl in the VS Code terminal. The following commands provide a reproducible test sequence using Evan Mobley.
+All five endpoints were successfully tested locally using Thunder Client in VS Code.
 
 ### GET All Players
-`curl -i http://localhost:3000/api/resources`
+**Request:** `GET /api/items`
 
-**Result:** 200 OK. Returned the player collection as JSON.
+**Result:** 200 OK. Returned the saved players from PostgreSQL as JSON.
 
 ### GET Player by ID
-`curl -i http://localhost:3000/api/resources/2`
+**Request:** `GET /api/items/1`
 
-**Result:** 200 OK. Retrieved the player with ID 2.
+**Result:** 200 OK. Retrieved Victor Wembanyama using his database ID.
 
 ### GET Nonexistent Player
-`curl -i http://localhost:3000/api/resources/999`
+**Request:** `GET /api/items/999`
 
 **Result:** 404 Not Found. Returned `{"error":"Player not found"}`.
 
 ### POST New Player
-`curl -i -X POST http://localhost:3000/api/resources -H "Content-Type: application/json" -d '{"name":"Evan Mobley","team":"Cavs"}'`
+**Request:** `POST /api/items`
 
-**Expected result:** 201 Created. Adds Evan Mobley with the automatically generated ID 4.
+**JSON Body:**
+```json
+{
+  "name": "Victor Wembanyama",
+  "team": "Spurs"
+}
+```
+
+**Result:** 201 Created. Inserted the player into PostgreSQL and returned the saved record with ID 1.
 
 ### PUT Update Player
-`curl -i -X PUT http://localhost:3000/api/resources/4 -H "Content-Type: application/json" -d '{"team":"Cavaliers"}'`
+**Request:** `PUT /api/items/1`
 
-**Expected result:** 200 OK. Updates Evan Mobley's team field to Cavaliers.
+**JSON Body:**
+```json
+{
+  "team": "San Antonio Spurs"
+}
+```
+
+**Result:** 200 OK. Updated the team while preserving the player's ID and name. A subsequent GET confirmed the change.
 
 ### DELETE Player
-`curl -i -X DELETE http://localhost:3000/api/resources/4`
+**Request:** `DELETE /api/items/2`
 
-**Expected result:** 200 OK. Removes the player with ID 4.
+**Result:** 200 OK. Removed the temporary Test Player from PostgreSQL.
 
 ### Verify Deletion
-`curl -i http://localhost:3000/api/resources/4`
+**Request:** `GET /api/items/2`
 
-**Expected result:** 404 Not Found. Confirms the deleted player no longer exists.
+**Result:** 404 Not Found. Confirmed the deleted player could no longer be retrieved.
+
+### Persistence Test
+Restarted the Express server and requested `GET /api/items/1` again. The response returned Victor Wembanyama with the updated team, confirming that PostgreSQL retained the data after the server restarted.
 
 ## Middleware
 The application uses `express.json()` to parse incoming JSON requests.
 
-A custom logging middleware prints the timestamp, HTTP method, and requested endpoint to the server terminal.
+Custom logging middleware prints the timestamp, HTTP method, and requested endpoint to the server terminal.
 
 ## Data Storage
-Player information is stored in memory using a JavaScript array. Data resets to its initial state when the server restarts.
+NBA players are stored in a PostgreSQL table named `players`, containing `id`, `name`, and `team` columns.
+
+PostgreSQL generates unique player IDs automatically. API routes execute SQL queries to retrieve, insert, update, and delete records. Player data persists after restarting the Express application.
